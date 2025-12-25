@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Croproof | Decentralized Quality Assurance</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --primary: #00b894; 
+            --secondary: #0984e3; 
+            --accent: #fdcb6e; 
+            --text-dark: #2d3436;
+            --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            margin: 0;
+            padding: 40px 20px;
+            color: var(--text-dark);
+            min-height: 100vh;
+        }
+
+        .header { text-align: center; margin-bottom: 50px; color: white; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        .header h1 { 
+            font-size: 3.5rem; margin: 0; font-weight: 800; letter-spacing: -1px;
+            background: -webkit-linear-gradient(#55efc4, #00b894);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header p { font-size: 1.2rem; opacity: 0.8; margin-top: 10px; font-weight: 300; }
+
+        .container {
+            max-width: 1000px; margin: 0 auto; display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px;
+        }
+
+        .card {
+            background: var(--card-bg); padding: 30px; border-radius: 16px;
+            box-shadow: var(--shadow); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            position: relative; overflow: hidden;
+            transition: transform 0.3s;
+        }
+        .card:hover { transform: translateY(-5px); }
+        .card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        .card h3 { margin-top: 0; font-size: 1.4rem; display: flex; justify-content: space-between; align-items: center; }
+        .full-width { grid-column: 1 / -1; }
+
+        label { display: block; margin-top: 15px; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; color: #636e72; }
+        input {
+            width: 100%; padding: 14px; margin-top: 8px; border: 2px solid #dfe6e9;
+            border-radius: 8px; box-sizing: border-box; font-size: 1rem; transition: all 0.3s; background: #fdfdfd;
+        }
+        input:focus { border-color: var(--primary); outline: none; }
+
+        button {
+            width: 100%; padding: 15px; margin-top: 20px; border: none; border-radius: 8px;
+            font-size: 1rem; font-weight: 700; cursor: pointer; text-transform: uppercase;
+            transition: all 0.3s; color: white;
+        }
+        .btn-main { background: linear-gradient(135deg, var(--primary), #00cec9); }
+        .btn-main:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-secondary { background: linear-gradient(135deg, var(--secondary), #74b9ff); }
+        .btn-iot { background: linear-gradient(135deg, #6c5ce7, #a29bfe); }
+        .btn-dark { background: #2d3436; }
+        button:disabled { background: #b2bec3; cursor: not-allowed; }
+
+        .upload-zone {
+            border: 2px dashed #b2bec3; padding: 20px; text-align: center;
+            border-radius: 8px; margin-top: 5px; transition: border-color 0.3s;
+        }
+        .upload-zone:hover { border-color: var(--secondary); background: #f0f8ff; }
+
+        .iot-console {
+            background: #1e272e; color: #00d2d3; padding: 15px; border-radius: 8px;
+            font-family: 'Courier New', monospace; margin-top: 15px; border-left: 4px solid var(--secondary);
+        }
+
+        .badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; background: #eee; color: #666; }
+        .badge.active { background: rgba(0, 184, 148, 0.2); color: var(--primary); border: 1px solid var(--primary); }
+
+        #reportResult {
+            margin-top: 20px; padding: 20px; border-radius: 12px; display: none;
+            background: white; border: 1px solid #eee;
+        }
+        .grade-box { text-align: center; padding: 15px; border-radius: 8px; margin-bottom: 15px; color: white; font-weight: 800; font-size: 1.5rem; letter-spacing: 2px; }
+        .bg-green { background: linear-gradient(135deg, #00b894, #00cec9); }
+        .bg-orange { background: linear-gradient(135deg, #f39c12, #f1c40f); }
+        .bg-red { background: linear-gradient(135deg, #d63031, #ff7675); }
+
+        #successBox {
+            display: none; background: #e8f5e9; border: 1px solid #2ecc71;
+            padding: 15px; border-radius: 8px; margin-top: 15px; text-align: center;
+        }
+        #successBox h4 { margin: 0; color: #27ae60; font-size: 1.2rem; }
+        #successBox p { margin: 5px 0 0 0; color: #2d3436; font-size: 0.9rem; }
+
+        #toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.85); color: white; padding: 12px 30px; border-radius: 50px;
+            z-index: 1000; display: none; font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Croproof <span style="font-size: 0.5em; vertical-align: super; opacity: 0.6;">PRO</span></h1>
+        <p>Next-Gen Decentralized Crop Quality Assurance</p>
+    </div>
+
+    <div class="container">
+        
+        <div class="card">
+            <h3>Login <span id="walletBadge" class="badge">Offline</span></h3>
+            <p style="color: #636e72; font-size: 0.9rem;">Authenticate via Web3 Wallet</p>
+            <button onclick="connectWallet()" class="btn-dark" id="connectBtn">⚡ Connect Wallet</button>
+        </div>
+
+        <div class="card">
+            <h3>IoT Feed</h3>
+            <div class="iot-console" id="iotConsole">● SENSOR: STANDBY MODE</div>
+            <button onclick="simulateSensorRead()" class="btn-iot">📡 Fetch Sensor Data</button>
+        </div>
+
+        <div class="card">
+            <h3>Admin Tools</h3>
+            <label>Authorize Lab Address</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="newLabAddress" placeholder="0x..." />
+                <button onclick="grantLabRole()" class="btn-secondary" style="margin-top: 8px; width: auto;">Grant</button>
+            </div>
+            <small id="roleStatus" style="color: var(--primary); display: block; margin-top: 5px;"></small>
+        </div>
+
+        <div class="card full-width">
+            <h3>📝 Record Quality Assessment</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label>Farmer Wallet Address</label>
+                    <input type="text" id="farmerAddress" placeholder="0x..." />
+                    
+                    <label>Moisture Content (%)</label>
+                    <input type="number" id="moisture" placeholder="0.0" />
+                    
+                    <label>Grain Size (mm)</label>
+                    <input type="number" id="grainSize" placeholder="0" />
+
+                    <label>Impurity (bps)</label>
+                    <input type="number" id="impurity" placeholder="0" />
+                </div>
+
+                <div>
+                    <label>Digital Certificate (IPFS)</label>
+                    <div class="upload-zone">
+                        <input type="file" id="fileInput" style="border: none; background: transparent; padding: 0;" />
+                        <button onclick="uploadToIPFS()" class="btn-secondary" style="width: auto; margin-top: 10px; padding: 8px 30px; font-size: 0.9rem;">Upload</button>
+                    </div>
+                    <label>IPFS CID</label>
+                    <input type="text" id="ipfsCid" readonly style="background: #eee; color: #888;" placeholder="Auto-generated..." />
+                </div>
+            </div>
+
+            <button onclick="submitReport()" id="submitBtn" class="btn-main" disabled>Report to Blockchain</button>
+
+            <div id="successBox">
+                <h4>🎉 Report Submitted Successfully!</h4>
+                <p><strong>Report ID:</strong> <span id="newReportId" style="font-size: 1.2em; color: black;">-</span></p>
+                <p style="margin-top:5px; font-family: monospace;">Tx: <span id="txHash">-</span></p>
+            </div>
+        </div>
+
+        <div class="card full-width">
+            <h3>🔍 Public Verification</h3>
+            <div style="display: flex; gap: 15px;">
+                <input type="number" id="searchReportId" placeholder="Enter Report ID (e.g. 1)" style="margin-top: 0;" />
+                <button onclick="fetchReport()" class="btn-dark" style="margin-top: 0; width: 200px;">Verify</button>
+            </div>
+
+            <div id="reportResult">
+                <div id="gradeBox" class="grade-box">LOADING...</div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; text-align: center;">
+                    <div><small>FARMER</small><br><strong id="viewFarmer" style="font-size: 0.8rem;">-</strong></div>
+                    <div><small>FAIR PRICE</small><br><strong id="viewPrice" style="color: var(--primary); font-size: 1.2rem;">-</strong></div>
+                    <div><small>MOISTURE</small><br><strong id="viewMoisture">-</strong>%</div>
+                    <div><small>IMPURITY</small><br><strong id="viewImpurity">-</strong> bps</div>
+                </div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <a id="viewIpfsLink" href="#" target="_blank" style="color: var(--secondary); text-decoration: none; font-weight: bold;">View Original Document ↗</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Ready</div>
+
+    <script>
+        // ================= CONFIGURATION =================
+        const PINATA_API_KEY = "1232932f2c8d5cd8b141";
+        const PINATA_SECRET_KEY = "b10a1e2bb9a51663a5a0133917ae24c4fb2208c9e902080b573287d0ee0b6390";
+        const CONTRACT_ADDRESS = "0x65Dc46832de564A239c7cbffE409b114F8CBE1b2"; 
+        
+        const CONTRACT_ABI = [{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"grantRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"InvalidInput","type":"error"},{"inputs":[],"name":"NotAuthorized","type":"error"},{"inputs":[],"name":"ReportNotFound","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"lab","type":"address"},{"indexed":true,"internalType":"address","name":"admin","type":"address"},{"indexed":false,"internalType":"bool","name":"authorized","type":"bool"}],"name":"LabAuthorized","type":"event"},{"inputs":[{"internalType":"address","name":"farmer","type":"address"},{"internalType":"bytes32","name":"cropType","type":"bytes32"},{"internalType":"bytes32","name":"region","type":"bytes32"},{"internalType":"string","name":"ipfsCid","type":"string"},{"internalType":"uint8","name":"moisture","type":"uint8"},{"internalType":"uint16","name":"impurity","type":"uint16"},{"internalType":"uint16","name":"grainSize","type":"uint16"}],"name":"recordReport","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"reportId","type":"uint256"},{"indexed":true,"internalType":"address","name":"farmer","type":"address"},{"indexed":true,"internalType":"address","name":"lab","type":"address"},{"indexed":false,"internalType":"string","name":"ipfsCid","type":"string"},{"indexed":false,"internalType":"uint256","name":"suggestedPrice","type":"uint256"},{"indexed":false,"internalType":"uint8","name":"moisture","type":"uint8"},{"indexed":false,"internalType":"uint16","name":"impurity","type":"uint16"},{"indexed":false,"internalType":"uint16","name":"grainSize","type":"uint16"},{"indexed":false,"internalType":"uint8","name":"classification","type":"uint8"}],"name":"ReportRecorded","type":"event"},{"inputs":[{"internalType":"uint256","name":"reportId","type":"uint256"}],"name":"getReport","outputs":[{"components":[{"internalType":"uint256","name":"reportId","type":"uint256"},{"internalType":"address","name":"farmer","type":"address"},{"internalType":"bytes32","name":"cropType","type":"bytes32"},{"internalType":"bytes32","name":"region","type":"bytes32"},{"internalType":"string","name":"ipfsCid","type":"string"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"uint8","name":"moisture","type":"uint8"},{"internalType":"uint16","name":"impurity","type":"uint16"},{"internalType":"uint16","name":"grainSize","type":"uint16"},{"internalType":"uint256","name":"suggestedPrice","type":"uint256"},{"internalType":"uint8","name":"classification","type":"uint8"},{"internalType":"address","name":"lab","type":"address"},{"internalType":"bool","name":"disputed","type":"bool"},{"internalType":"bool","name":"exists","type":"bool"}],"internalType":"struct CropQualityAdvanced.TestReport","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"LAB_ROLE","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"}];
+
+        let provider, signer, contract;
+
+        function showToast(msg) {
+            const t = document.getElementById("toast");
+            t.innerText = msg;
+            t.style.display = "block";
+            setTimeout(() => t.style.display = "none", 4000);
+        }
+
+        async function connectWallet() {
+            if (!window.ethereum) return alert("Install MetaMask");
+            try {
+                await window.ethereum.request({ method: "eth_requestAccounts" });
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                const addr = await signer.getAddress();
+                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+                
+                document.getElementById("walletBadge").innerText = "● Active";
+                document.getElementById("walletBadge").classList.add("active");
+                document.getElementById("connectBtn").innerText = "Connected: " + addr.substring(0,6) + "...";
+                document.getElementById("submitBtn").disabled = false;
+                showToast("Wallet Connected!");
+            } catch (e) { showToast("Connection Error"); }
+        }
+
+        function simulateSensorRead() {
+            const console = document.getElementById("iotConsole");
+            console.innerText = "● CONNECTING TO SENSOR MESH...";
+            console.style.color = "#f39c12";
+            setTimeout(() => {
+                const m = Math.floor(Math.random() * (16 - 10 + 1) + 10);
+                const i = Math.floor(Math.random() * (100 - 30 + 1) + 30);
+                console.innerHTML = `● DATA RECEIVED<br>> Moisture: ${m}%<br>> Impurity: ${i}bps`;
+                console.style.color = "#00d2d3";
+                document.getElementById("moisture").value = m;
+                document.getElementById("impurity").value = i;
+                document.getElementById("grainSize").value = 450;
+                showToast("IoT Data Synced");
+            }, 1500);
+        }
+
+        async function uploadToIPFS() {
+            const file = document.getElementById("fileInput").files[0];
+            if (!file) return alert("Select File");
+            showToast("Uploading to IPFS...");
+            const formData = new FormData();
+            formData.append("file", file);
+            try {
+                const res = await fetch(`https://api.pinata.cloud/pinning/pinFileToIPFS`, {
+                    method: "POST",
+                    headers: { pinata_api_key: PINATA_API_KEY, pinata_secret_api_key: PINATA_SECRET_KEY },
+                    body: formData
+                });
+                const data = await res.json();
+                document.getElementById("ipfsCid").value = data.IpfsHash;
+                showToast("Upload Successful");
+            } catch (e) { showToast("Upload Failed"); }
+        }
+
+        async function submitReport() {
+            if (!contract) return alert("Connect Wallet");
+            const f = document.getElementById("farmerAddress").value;
+            const cid = document.getElementById("ipfsCid").value;
+            if(!cid) return alert("Upload certificate first");
+
+            try {
+                showToast("Confirm Transaction in MetaMask...");
+                const tx = await contract.recordReport(
+                    f, 
+                    ethers.utils.formatBytes32String("Wheat"),
+                    ethers.utils.formatBytes32String("USA"),
+                    cid,
+                    document.getElementById("moisture").value,
+                    document.getElementById("impurity").value,
+                    document.getElementById("grainSize").value,
+                    { gasLimit: 500000 }
+                );
+                showToast("Transaction Sent! Waiting...");
+                const receipt = await tx.wait();
+                
+                let id = "Unknown";
+                if (receipt.events) {
+                    const event = receipt.events.find(e => e.event === "ReportRecorded");
+                    if (event && event.args) id = event.args.reportId.toString();
+                }
+                
+                document.getElementById("successBox").style.display = "block";
+                document.getElementById("newReportId").innerText = id;
+                document.getElementById("txHash").innerText = tx.hash.substring(0, 30) + "...";
+                showToast(`Success! Report ID: ${id}`);
+            } catch (e) { showToast("Transaction Failed"); }
+        }
+
+        async function fetchReport() {
+            if (!contract) return alert("Connect Wallet");
+            const id = document.getElementById("searchReportId").value;
+            const res = document.getElementById("reportResult");
+            const box = document.getElementById("gradeBox");
+            try {
+                const data = await contract.getReport(id);
+                res.style.display = "block";
+                document.getElementById("viewFarmer").innerText = (data.farmer || data[1]).substring(0,10)+"...";
+                document.getElementById("viewPrice").innerText = (data.suggestedPrice || data[9]).toString();
+                document.getElementById("viewMoisture").innerText = data.moisture || data[6];
+                document.getElementById("viewImpurity").innerText = data.impurity || data[7];
+                const cid = data.ipfsCid || data[4];
+                document.getElementById("viewIpfsLink").href = "https://ipfs.io/ipfs/" + cid;
+
+                const grade = Number(data.classification !== undefined ? data.classification : data[10]);
+                box.className = "grade-box";
+                if (grade === 0) { box.classList.add("bg-green"); box.innerText = "🏆 GRADE A (PREMIUM)"; }
+                else if (grade === 1) { box.classList.add("bg-orange"); box.innerText = "⚠️ GRADE B (STANDARD)"; }
+                else { box.classList.add("bg-red"); box.innerText = "❌ REJECTED"; }
+            } catch (e) { showToast("Report Not Found"); }
+        }
+
+        async function grantLabRole() {
+            if(!contract) return alert("Connect Wallet");
+            try {
+                const role = await contract.LAB_ROLE();
+                const tx = await contract.grantRole(role, document.getElementById("newLabAddress").value);
+                showToast("Granting Role...");
+                await tx.wait();
+                showToast("Role Granted!");
+            } catch(e) { showToast("Failed to Grant Role"); }
+        }
+    </script>
+</body>
+</html>
